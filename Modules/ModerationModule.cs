@@ -12,6 +12,7 @@ using bot;
 using static bot.serverdata;
 using Doraemon.Objects;
 using Doraemon.Common;
+using System.Net.Http;
 
 namespace Doraemon.Modules
 {
@@ -246,12 +247,23 @@ namespace Doraemon.Modules
             try
             {
                 var x = await user.CreateDmChannelAsync();
-                await x.SendBanDMAsync("You were banned", $"You were banned from **{ ctx.Guild.Name}**\n** Reason**: { reason}\nID: `{ caseId}`\nTo appeal, fill out the form )
+                await x.SendBanDMAsync("You were banned", $"You were banned from **{ ctx.Guild.Name}**\n** Reason**: { reason}\nID: `{ caseId}`\nTo appeal, fill out the form ");
             }
             catch (Exception)
             {
                 Console.WriteLine("Unable to DM user.");
             }
+            var e = new DiscordEmbedBuilder()
+                .WithDescription($"{user.Mention} was **banned** from the server with ID: `{caseId}`")
+                .WithColor(DiscordColor.Green);
+            var message = await ctx.Channel.SendMessageAsync(embed: e.Build());
+            await ctx.Guild.BanMemberAsync(user, 7, reason);
+        }
+        [Command("test")]
+        public async Task Test(CommandContext ctx, ulong user)
+        {
+            var client = new HttpClient();
+            await client.PutAsync($"https://discord.com/guilds/{ctx.Guild.Id}/bans/{user}", null);
         }
         [Command("tempban")]
         [RequireUserPermissions(Permissions.ManageMessages)]
