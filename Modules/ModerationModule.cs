@@ -11,6 +11,7 @@ using Doraemon.Services;
 using bot;
 using static bot.serverdata;
 using Doraemon.Objects;
+using Doraemon.Common;
 
 namespace Doraemon.Modules
 {
@@ -226,11 +227,96 @@ namespace Doraemon.Modules
                 Console.WriteLine("Unable to DM user.");
             }
         }
+        [Command("ban")]
+        [RequireUserPermissions(Permissions.ManageMessages)]
+        public async Task BanUserAsync(CommandContext ctx, DiscordMember user, [RemainingText] string reason)
+        {
+            // !ban @Garcia is bad at everything <---- There for epicness
+            var caseId = await produceID(20);
+            if (!CheckInteraction.CanModerate(ctx.Member, (DiscordMember)user))
+            {
+                await ctx.Message.DeleteAsync();
+                return;
+            }
+            if(user == ctx.Member)
+            {
+                await ctx.Channel.SendMessageAsync("You cannot ban yourself.");
+                return;
+            }
+            try
+            {
+                var x = await user.CreateDmChannelAsync();
+                await x.SendBanDMAsync("You were banned", $"You were banned from **{ ctx.Guild.Name}**\n** Reason**: { reason}\nID: `{ caseId}`\nTo appeal, fill out the form )
+            }
+            catch (Exception)
+            {
+                Console.WriteLine("Unable to DM user.");
+            }
+        }
         [Command("tempban")]
         [RequireUserPermissions(Permissions.ManageMessages)]
         public async Task BanUserTempAsync(CommandContext ctx, DiscordMember user, string duration, [RemainingText] string reason)
         {
-
+            if(!CheckInteraction.CanModerate(ctx.Member, user))
+            {
+                await ctx.Message.DeleteAsync();
+                return;
+            }
+            var caseId = await produceID(20);
+            char minute = 'm';
+            char day = 'd';
+            char hour = 'h';
+            char second = 's';
+            char week = 'w';
+            var BanTimer = new string(duration.Where(char.IsDigit).ToArray());
+            if (minute.ToString().Any(duration.Contains) && day.ToString().Any(duration.Contains) && hour.ToString().Any(duration.Contains) && second.ToString().Any(duration.Contains))
+            {
+                await ctx.Channel.SendMessageAsync("You cannot pass multiple time formats.");
+                return;
+            }
+            if (BanTimer.Length == 0)
+            {
+                return;
+            }
+            var Timer = Convert.ToInt32(BanTimer);
+            if (minute.ToString().Any(duration.ToLower().Contains))
+            {
+                Bot.Bans.Add(new Ban { Guild = ctx.Guild, User = user, End = DateTime.Now + TimeSpan.FromMinutes(Timer) });
+            }
+            else if (day.ToString().Any(duration.ToLower().Contains))
+            {
+                Bot.Bans.Add(new Ban { Guild = ctx.Guild, User = user, End = DateTime.Now + TimeSpan.FromDays(Timer) });
+            }
+            else if (second.ToString().Any(duration.ToLower().Contains))
+            {
+                Bot.Bans.Add(new Ban { Guild = ctx.Guild, User = user, End = DateTime.Now + TimeSpan.FromSeconds(Timer) });
+            }
+            else if (hour.ToString().Any(duration.ToLower().Contains))
+            {
+                Bot.Bans.Add(new Ban { Guild = ctx.Guild, User = user, End = DateTime.Now + TimeSpan.FromHours(Timer) });
+            }
+            else if (week.ToString().Any(duration.ToLower().Contains))
+            {
+                Bot.Bans.Add(new Ban { Guild = ctx.Guild, User = user, End = DateTime.Now + TimeSpan.FromDays(Timer * 7) });
+            }
+            else
+            {
+                Console.WriteLine("");
+            }
+            var e = new DiscordEmbedBuilder()
+                .WithDescription($"{user.Mention} was **banned*8 from the server with ID: `{caseId}`")
+                .WithColor(DiscordColor.Green);
+            var message = await ctx.Channel.SendMessageAsync(embed: e.Build());
+            try
+            {
+                var x = await user.CreateDmChannelAsync();
+                await x.SendBanDMAsync("You were banned", $"You were banned from **{ctx.Guild.Name}**\n**Reason**: {reason}\nID: `{caseId}`\nTo appeal, fill out the form ");
+            }
+            catch (Exception)
+            {
+                Console.WriteLine("Unable to DM user.");
+            }
+            await ctx.Guild.BanMemberAsync(user, 7, reason);
         }
     }
 }

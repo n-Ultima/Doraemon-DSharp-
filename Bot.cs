@@ -20,6 +20,7 @@ namespace Doraemon
         public static DiscordClient Client { get; set; }
         public static CommandsNextExtension Commands { get; set; }
         public static List<Mute> Mutes = new List<Mute>();
+        public static List<Ban> Bans = new List<Ban>();
         public async Task RunAsync()
         {
             var json = string.Empty;
@@ -69,7 +70,30 @@ namespace Doraemon
             {
                 data.save.system.load();
             }
-            Task.Run(async () => await MuteHandler().ConfigureAwait(false));
+            Task.Run(async () => await BanHandler());
+            Task.Run(async () => await MuteHandler());
+        }
+        private async Task BanHandler()
+        {
+            List<Ban> Remove = new List<Ban>();
+            foreach(var ban in Bans)
+            {
+                if(DateTime.Now < ban.End)
+                {
+                    continue;
+                }
+                var guild = await Client.GetGuildAsync(ban.Guild.Id);
+                var GetBans = await guild.GetBansAsync();
+                if(!GetBans.Any(x => x.User.Id == ban.User.Id))
+                {
+                    Remove.Add(ban);
+                    continue;
+                }
+                await guild.UnbanMemberAsync(ban.User.Id);
+            }
+            Bans = Bans.Except(Remove).ToList();
+            await Task.Delay(1000);
+            await BanHandler();
         }
         private async Task MuteHandler()
         {
